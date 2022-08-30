@@ -1,6 +1,6 @@
 import React, {useState, useRef, useEffect} from "react";
 import './style.css'
-import { faPaintBrush, faMinus, faCircle, faSquare, faEraser, faUpload, faDownload } from "@fortawesome/free-solid-svg-icons";
+import { faPaintBrush, faMinus, faCircle, faSquare, faEraser, faUpload, faDownload, faCaretUp } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 
 
@@ -71,9 +71,7 @@ const Canvas: React.FC = () => {
     let isMouseDragging = false
     let isUsingBrush = false;
 
-    let strokeWidth = 2
-    let polygonSide = 6
-
+    let polygonSide = 3
     let brushXPoints: any = [];
     let brushYPoints: any  = [];
     let brushDownPos: any = [];
@@ -100,10 +98,8 @@ const Canvas: React.FC = () => {
         if (canvasRef!.current) {
             canvas2DContextRef.current!.clearRect(0,0,canvasRef.current!.width, canvasRef.current!.height);
 
-
             canvas2DContextRef.current!.fillStyle = "white";
             canvas2DContextRef.current!.fillRect(0, 0, canvasRef.current.width, canvasRef.current.height);
-
             let img = new Image();
             img.onload = function(){
                 canvas2DContextRef.current!.drawImage(img, 0, 0);
@@ -173,6 +169,10 @@ const Canvas: React.FC = () => {
             case 'eraser':
                 drawEraserBrush()
                 break;
+            case 'polygon':
+                getPolygon();
+                canvas2DContextRef.current!.stroke();
+                break;
             default:
                 break;
         }
@@ -215,6 +215,54 @@ const Canvas: React.FC = () => {
             canvas2DContextRef.current!.clearRect(brushXPoints[i], brushYPoints[i], 5, 5);
             canvas2DContextRef.current!.closePath();
         }
+    }
+
+    function getAngle(mouseLocX: number, mouseLocY: number){
+        let adjacent = mouseDownPos.x - mouseLocX;
+        let opposite = mouseDownPos.y - mouseLocY;
+
+        const radResult = Math.atan2(opposite, adjacent)
+    
+        return radiansToDegrees(radResult);
+    }
+
+    function radiansToDegrees (rad: number){
+        if(rad < 0){
+            return Number((360.0 + (rad * (180 / Math.PI))).toFixed(2));
+        } else {
+            return Number((rad * (180 / Math.PI)).toFixed(2));
+        }
+    }
+
+    function degreesToRadians(degree: number){
+        return degree * (Math.PI / 180);
+    }
+
+
+    function getPolygonPoints(){
+        let angle =  degreesToRadians(getAngle(loc.x, loc.y));
+
+        let radiusX = shapeBoundingBox.width;
+        let radiusY = shapeBoundingBox.height;
+        let polygonPoints = [];
+
+        for(let i = 0; i < polygonSide; i++){
+            polygonPoints.push(new PolygonPoint(loc.x + radiusX * Math.sin(angle),
+            loc.y - radiusY * Math.cos(angle)));
+
+            angle += 2 * Math.PI / polygonSide;
+        }
+        return polygonPoints;
+    }
+
+    function getPolygon(){
+        let polygonPoints = getPolygonPoints();
+        canvas2DContextRef.current!.beginPath();
+        canvas2DContextRef.current!.moveTo(polygonPoints[0].x, polygonPoints[0].y);
+        for(let i = 1; i < polygonSide; i++){
+            canvas2DContextRef.current!.lineTo(polygonPoints[i].x, polygonPoints[i].y);
+        }
+        canvas2DContextRef.current!.closePath();
     }
 
     function getMousePosOnCanvas (x: number, y: number){
@@ -338,6 +386,9 @@ const Canvas: React.FC = () => {
                     </button>
                     <button className={'btn btn-light mx-1 my-2 ' + (activeButton === 'rectangle'? 'active' :'' )} onClick={ () => {setActiveButton('rectangle'); setCurrentTool('rectangle')}}>
                         <FontAwesomeIcon icon={faSquare} />
+                    </button>
+                    <button className={'btn btn-light mx-1 my-2 ' + (activeButton === 'polygon'? 'active' :'' )} onClick={ () => {setActiveButton('polygon'); setCurrentTool('polygon')}}>
+                        <FontAwesomeIcon icon={faCaretUp} />
                     </button>
                     <button className={'btn btn-light mx-1 my-2 ' + (activeButton === 'eraser'? 'active' :'' )} onClick={ () => {setActiveButton('eraser'); setCurrentTool('eraser')}}>
                         <FontAwesomeIcon icon={faEraser} />
