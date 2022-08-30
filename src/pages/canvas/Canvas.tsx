@@ -61,6 +61,7 @@ const Canvas: React.FC = () => {
     const [fillColor, setFillColor] = useState<string>('#000000');
 
     const [currentTool, setCurrentTool] = useState<string>('');
+    const [currentToolObject, setCurrentToolObject] = useState<{}>({curr: ''});
 
     const canvasRef = useRef<HTMLCanvasElement>(null);
     let canvas2DContextRef = React.useRef<CanvasRenderingContext2D | null | undefined>(null);
@@ -86,7 +87,6 @@ const Canvas: React.FC = () => {
 
         setStrokeColor(newColor)
         setFillColor(newColor)
-
     }
     function handleUploadButtonClick() {
         inputRef.current?.click();
@@ -144,7 +144,6 @@ const Canvas: React.FC = () => {
     }
 
     function drawRubberbandShape(loc: Location){
-
         canvas2DContextRef.current!.strokeStyle = strokeColor;
         canvas2DContextRef.current!.fillStyle = fillColor;
 
@@ -159,15 +158,21 @@ const Canvas: React.FC = () => {
                 canvas2DContextRef.current!.stroke();
                 break;
             case 'circle':
-                
+                let radius = shapeBoundingBox.width;
+                canvas2DContextRef.current!.beginPath();
+                canvas2DContextRef.current!.arc(mouseDownPos.x, mouseDownPos.y, radius, 0, Math.PI * 2, false);
+                canvas2DContextRef.current!.fillStyle = fillColor
+                canvas2DContextRef.current!.fill();
+                canvas2DContextRef.current!.stroke();
                 break;
             case 'rectangle':
-                
+                canvas2DContextRef.current!.rect(shapeBoundingBox.left, shapeBoundingBox.top, shapeBoundingBox.width, shapeBoundingBox.height);
+                canvas2DContextRef.current!.fillStyle = fillColor;
+                canvas2DContextRef.current!.fill()
                 break;
             case 'eraser':
-                
+                drawEraserBrush()
                 break;
-        
             default:
                 break;
         }
@@ -194,6 +199,21 @@ const Canvas: React.FC = () => {
             canvas2DContextRef.current!.strokeStyle = strokeColor
             
             canvas2DContextRef.current!.stroke();
+        }
+    }
+
+    function drawEraserBrush(){
+        for(let i = 1; i < brushXPoints.length; i++){
+            canvas2DContextRef.current!.beginPath();
+
+            if(brushDownPos[i]){
+                canvas2DContextRef.current!.moveTo(brushXPoints[i-1], brushYPoints[i-1]);
+            } else {
+                canvas2DContextRef.current!.moveTo(brushXPoints[i]-1, brushYPoints[i]);
+            }
+
+            canvas2DContextRef.current!.clearRect(brushXPoints[i], brushYPoints[i], 5, 5);
+            canvas2DContextRef.current!.closePath();
         }
     }
 
@@ -264,6 +284,13 @@ const Canvas: React.FC = () => {
 
                 redrawCanvasImage();
                 drawBrush();
+            } else if (isMouseDragging && isUsingBrush && currentTool === 'eraser') {
+                if(loc.x > 0 && loc.x < canvasWidth && loc.y > 0 && loc.y < canvasHeight){
+                    addBrushPoint(loc.x, loc.y, true);
+                }
+
+                redrawCanvasImage();
+                drawEraserBrush();
             } else if (isMouseDragging) {
                 redrawCanvasImage();
                 updateRubberbandOnMove(loc);
@@ -271,24 +298,27 @@ const Canvas: React.FC = () => {
         }
     })
 
-
     useEffect(() => {
         if (canvasRef.current) {
-            canvasRef.current.addEventListener('mousedown', handleMouseDown, false)
-            canvasRef.current.addEventListener('mouseup', handleMouseUp, false)
-            canvasRef.current.addEventListener('mousemove', handleMouseMove, false)
-        
             canvasRef.current.width  = canvasWidth;
             canvasRef.current.height = canvasHeight;
             canvasRef.current.style.width = canvasWidth * 2 + 'px';
             canvasRef.current.style.height = canvasHeight * 2 + 'px';
         
             canvas2DContextRef.current = canvasRef.current?.getContext("2d");
-
             canvas2DContextRef.current!.fillStyle = "white";
             canvas2DContextRef.current!.fillRect(0, 0, canvasRef.current.width, canvasRef.current.height);
         }
-    },[currentTool])
+    },[])
+
+
+    useEffect(() => {
+        if (canvasRef.current) {
+            canvasRef.current.addEventListener('mousedown', handleMouseDown, false)
+            canvasRef.current.addEventListener('mouseup', handleMouseUp, false)
+            canvasRef.current.addEventListener('mousemove', handleMouseMove, false)
+        }
+    },[currentTool, strokeColor, fillColor])
 
     return <>
     <div className="caontiner-fluid h-100">
@@ -296,7 +326,7 @@ const Canvas: React.FC = () => {
             <div className="col-md-1 text-center wrapper">
                 <div className="card shadow mt-4 p-1">
                     <h5>Tools</h5>
-                    <button className={'btn btn-light mx-1 my-2 ' + (activeButton === 'brush'? 'active' :'' )} onClick={ () => {setActiveButton('brush'); setCurrentTool('brush'); console.log('log');
+                    <button className={'btn btn-light mx-1 my-2 ' + (activeButton === 'brush'? 'active' :'' )} onClick={ () => {setActiveButton('brush'); setCurrentTool('brush');
                     }}>
                         <FontAwesomeIcon icon={faPaintBrush} />
                     </button>
