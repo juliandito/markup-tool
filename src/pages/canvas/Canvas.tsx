@@ -1,6 +1,6 @@
 import React, {useState, useRef, useEffect} from "react";
 import './style.css'
-import { faPaintBrush, faMinus, faCircle, faSquare, faEraser, faUpload, faDownload, faCaretUp } from "@fortawesome/free-solid-svg-icons";
+import { faPaintBrush, faMinus, faCircle, faSquare, faEraser, faUpload, faDownload, faCaretUp, faTextWidth } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 
 
@@ -162,6 +162,7 @@ const Canvas: React.FC = () => {
                 canvas2DContextRef.current!.stroke();
                 break;
             case 'rectangle':
+                canvas2DContextRef.current!.beginPath();
                 canvas2DContextRef.current!.rect(shapeBoundingBox.left, shapeBoundingBox.top, shapeBoundingBox.width, shapeBoundingBox.height);
                 canvas2DContextRef.current!.fillStyle = fillColor;
                 canvas2DContextRef.current!.fill()
@@ -172,6 +173,11 @@ const Canvas: React.FC = () => {
             case 'polygon':
                 getPolygon();
                 canvas2DContextRef.current!.stroke();
+                break;
+            case 'text':
+                canvas2DContextRef.current!.font = 'bold 8px Arial';
+                canvas2DContextRef.current!.fillStyle = 'black';
+                canvas2DContextRef.current!.fillText("Movel", loc.x, loc.y);
                 break;
             default:
                 break;
@@ -315,6 +321,8 @@ const Canvas: React.FC = () => {
 
             isMouseDragging = false
             isUsingBrush = false
+
+            saveCanvasImage()
         }
     }
     const handleMouseMove = ((e: any) => {
@@ -389,6 +397,9 @@ const Canvas: React.FC = () => {
                     </button>
                     <button className={'btn btn-light mx-1 my-2 ' + (activeButton === 'polygon'? 'active' :'' )} onClick={ () => {setActiveButton('polygon'); setCurrentTool('polygon')}}>
                         <FontAwesomeIcon icon={faCaretUp} />
+                    </button>
+                    <button className={'btn btn-light mx-1 my-2 ' + (activeButton === 'text'? 'active' :'' )} onClick={ () => {setActiveButton('text'); setCurrentTool('text')}}>
+                        <FontAwesomeIcon icon={faTextWidth} />
                     </button>
                     <button className={'btn btn-light mx-1 my-2 ' + (activeButton === 'eraser'? 'active' :'' )} onClick={ () => {setActiveButton('eraser'); setCurrentTool('eraser')}}>
                         <FontAwesomeIcon icon={faEraser} />
