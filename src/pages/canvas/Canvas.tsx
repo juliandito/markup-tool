@@ -61,7 +61,6 @@ const Canvas: React.FC = () => {
     const [fillColor, setFillColor] = useState<string>('#000000');
 
     const [currentTool, setCurrentTool] = useState<string>('');
-    const [currentToolObject, setCurrentToolObject] = useState<{}>({curr: ''});
 
     const canvasRef = useRef<HTMLCanvasElement>(null);
     let canvas2DContextRef = React.useRef<CanvasRenderingContext2D | null | undefined>(null);
@@ -199,11 +198,10 @@ const Canvas: React.FC = () => {
             } else {
                 canvas2DContextRef.current!.moveTo(brushXPoints[i]-1, brushYPoints[i]);
             }
-            canvas2DContextRef.current!.lineTo(brushXPoints[i], brushYPoints[i]);
 
+            canvas2DContextRef.current!.lineTo(brushXPoints[i], brushYPoints[i]);
             canvas2DContextRef.current!.closePath();
             canvas2DContextRef.current!.strokeStyle = strokeColor
-            
             canvas2DContextRef.current!.stroke();
         }
     }
@@ -228,7 +226,6 @@ const Canvas: React.FC = () => {
         let opposite = mouseDownPos.y - mouseLocY;
 
         const radResult = Math.atan2(opposite, adjacent)
-    
         return radiansToDegrees(radResult);
     }
 
@@ -271,6 +268,7 @@ const Canvas: React.FC = () => {
         canvas2DContextRef.current!.closePath();
     }
 
+
     function getMousePosOnCanvas (x: number, y: number){
         let canvasSize = canvasRef.current?.getBoundingClientRect()
         const currentCanvasWidth = canvasRef.current?.width
@@ -289,8 +287,6 @@ const Canvas: React.FC = () => {
             return {x: 0, y: 0}
         }
     }
-
-
     const handleMouseDown = (e: any) => {
         if (canvasRef.current) {
             canvasRef.current.style.cursor = 'crosshair'
@@ -366,7 +362,6 @@ const Canvas: React.FC = () => {
             canvas2DContextRef.current!.fillRect(0, 0, canvasRef.current.width, canvasRef.current.height);
         }
     },[])
-
 
     useEffect(() => {
         if (canvasRef.current) {
