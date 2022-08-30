@@ -57,21 +57,22 @@ const Canvas: React.FC = () => {
 
     const [canvasWidth, setCanvasWidth] = useState<number>(400);
     const [canvasHeight, setCanvasHeight] = useState<number>(300);
+    const [strokeColor, setStrokeColor] = useState<string>('#000000');
+    const [fillColor, setFillColor] = useState<string>('#000000');
 
+    const [currentTool, setCurrentTool] = useState<string>('');
 
     const canvasRef = useRef<HTMLCanvasElement>(null);
-    let canvas2DContextRef = React.useRef<CanvasRenderingContext2D | null>(null);
+    let canvas2DContextRef = React.useRef<CanvasRenderingContext2D | null | undefined>(null);
 
     let imageDataUrl = canvasRef.current?.toDataURL()
     let savedImage: ImageData
     let isMouseDragging = false
-    let strokeColor = 'black'
-    let fillColor = 'black'
+    let isUsingBrush = false;
+
     let strokeWidth = 2
     let polygonSide = 6
-    let currentTool = 'brush'
 
-    let isUsingBrush = false;
     let brushXPoints: any = [];
     let brushYPoints: any  = [];
     let brushDownPos: any = [];
@@ -79,7 +80,14 @@ const Canvas: React.FC = () => {
     let shapeBoundingBox = new ShapeBounding(0,0,0,0);
     let mouseDownPos = new MouseDownPos(0,0);
     let loc = new Location(0,0);
-    
+
+    function handleChangeColor(e: any) {
+        let newColor = e.target.value
+
+        setStrokeColor(newColor)
+        setFillColor(newColor)
+
+    }
     function handleUploadButtonClick() {
         inputRef.current?.click();
     };
@@ -113,19 +121,174 @@ const Canvas: React.FC = () => {
         canvas2DContextRef.current!.putImageData(savedImage,0,0);
     }
 
+    function updateRubberbandSizeData(loc: Location){
+        shapeBoundingBox.width = Math.abs(loc.x - mouseDownPos.x);
+        shapeBoundingBox.height = Math.abs(loc.y - mouseDownPos.y);
+
+        if(loc.x > mouseDownPos.x){
+            shapeBoundingBox.left = mouseDownPos.x;
+        } else {
+            shapeBoundingBox.left = loc.x;
+        }
+
+        if(loc.y > mouseDownPos.y){
+            shapeBoundingBox.top = mouseDownPos.y;
+        } else {
+            shapeBoundingBox.top = loc.y;
+        }
+    }
+
+    function updateRubberbandOnMove(loc: Location){
+        updateRubberbandSizeData(loc);
+        drawRubberbandShape(loc);
+    }
+
+    function drawRubberbandShape(loc: Location){
+
+        canvas2DContextRef.current!.strokeStyle = strokeColor;
+        canvas2DContextRef.current!.fillStyle = fillColor;
+
+        switch (currentTool) {
+            case 'brush':
+                drawBrush();
+                break;
+            case 'line':
+                canvas2DContextRef.current!.beginPath();
+                canvas2DContextRef.current!.moveTo(mouseDownPos.x, mouseDownPos.y);
+                canvas2DContextRef.current!.lineTo(loc.x, loc.y);
+                canvas2DContextRef.current!.stroke();
+                break;
+            case 'circle':
+                
+                break;
+            case 'rectangle':
+                
+                break;
+            case 'eraser':
+                
+                break;
+        
+            default:
+                break;
+        }
+    }
+
+    function addBrushPoint(x: number, y: number, mouseDown: boolean){
+        brushXPoints.push(x);
+        brushYPoints.push(y);
+        brushDownPos.push(mouseDown);
+    }
+
+    function drawBrush(){
+        for(let i = 1; i < brushXPoints.length; i++){
+            canvas2DContextRef.current!.beginPath();
+
+            if(brushDownPos[i]){
+                canvas2DContextRef.current!.moveTo(brushXPoints[i-1], brushYPoints[i-1]);
+            } else {
+                canvas2DContextRef.current!.moveTo(brushXPoints[i]-1, brushYPoints[i]);
+            }
+            canvas2DContextRef.current!.lineTo(brushXPoints[i], brushYPoints[i]);
+
+            canvas2DContextRef.current!.closePath();
+            canvas2DContextRef.current!.strokeStyle = strokeColor
+            
+            canvas2DContextRef.current!.stroke();
+        }
+    }
+
+    function getMousePosOnCanvas (x: number, y: number){
+        let canvasSize = canvasRef.current?.getBoundingClientRect()
+        const currentCanvasWidth = canvasRef.current?.width
+        const currentCanvasHeight = canvasRef.current?.height
+
+        if (
+            canvasSize !== undefined && 
+            currentCanvasWidth !== undefined && 
+            currentCanvasHeight !== undefined
+            ) {
+            const xPos = (x - canvasSize?.left) * (currentCanvasWidth / canvasSize.width)
+            const yPos = (y - canvasSize?.top) * (currentCanvasHeight / canvasSize.height)
+
+            return {x: xPos, y: yPos}
+        } else {
+            return {x: 0, y: 0}
+        }
+    }
+
+
+    const handleMouseDown = (e: any) => {
+        if (canvasRef.current) {
+            canvasRef.current.style.cursor = 'crosshair'
+
+            const currentMouseLoc = getMousePosOnCanvas(e.clientX, e.clientY);
+
+            loc.x = currentMouseLoc.x
+            loc.y = currentMouseLoc.y
+
+            mouseDownPos.x = loc.x;
+            mouseDownPos.y = loc.y;
+
+            addBrushPoint(loc.x, loc.y, false);
+            isMouseDragging = true
+            isUsingBrush = true
+
+            saveCanvasImage()
+        }
+    }
+    const handleMouseUp = (e: any) => {
+        if (canvasRef.current) {
+            canvasRef.current.style.cursor = 'default'
+
+            const currentMouseLoc = getMousePosOnCanvas(e.clientX, e.clientY);
+
+            loc.x = currentMouseLoc.x
+            loc.y = currentMouseLoc.y
+
+            isMouseDragging = false
+            isUsingBrush = false
+        }
+    }
+    const handleMouseMove = ((e: any) => {
+        if (canvasRef.current) {
+            canvasRef.current.style.cursor = 'crosshair'
+
+            const currentMouseLoc = getMousePosOnCanvas(e.clientX, e.clientY);
+            loc.x = currentMouseLoc.x
+            loc.y = currentMouseLoc.y
+
+            if(isMouseDragging && isUsingBrush && currentTool === 'brush'){
+                if(loc.x > 0 && loc.x < canvasWidth && loc.y > 0 && loc.y < canvasHeight){
+                    addBrushPoint(loc.x, loc.y, true);
+                }
+
+                redrawCanvasImage();
+                drawBrush();
+            } else if (isMouseDragging) {
+                redrawCanvasImage();
+                updateRubberbandOnMove(loc);
+            }
+        }
+    })
+
+
     useEffect(() => {
         if (canvasRef.current) {
+            canvasRef.current.addEventListener('mousedown', handleMouseDown, false)
+            canvasRef.current.addEventListener('mouseup', handleMouseUp, false)
+            canvasRef.current.addEventListener('mousemove', handleMouseMove, false)
+        
             canvasRef.current.width  = canvasWidth;
             canvasRef.current.height = canvasHeight;
             canvasRef.current.style.width = canvasWidth * 2 + 'px';
             canvasRef.current.style.height = canvasHeight * 2 + 'px';
-
-            canvas2DContextRef.current = canvasRef.current.getContext("2d");
+        
+            canvas2DContextRef.current = canvasRef.current?.getContext("2d");
 
             canvas2DContextRef.current!.fillStyle = "white";
             canvas2DContextRef.current!.fillRect(0, 0, canvasRef.current.width, canvasRef.current.height);
         }
-    },[canvasWidth, canvasHeight])
+    },[currentTool])
 
     return <>
     <div className="caontiner-fluid h-100">
@@ -133,21 +296,23 @@ const Canvas: React.FC = () => {
             <div className="col-md-1 text-center wrapper">
                 <div className="card shadow mt-4 p-1">
                     <h5>Tools</h5>
-                    <button className={'btn btn-light mx-1 my-2 ' + (activeButton === 'brush'? 'active' :'' )} onClick={ () => {setActiveButton('brush')}}>
+                    <button className={'btn btn-light mx-1 my-2 ' + (activeButton === 'brush'? 'active' :'' )} onClick={ () => {setActiveButton('brush'); setCurrentTool('brush'); console.log('log');
+                    }}>
                         <FontAwesomeIcon icon={faPaintBrush} />
                     </button>
-                    <button className={'btn btn-light mx-1 my-2 ' + (activeButton === 'line'? 'active' :'' )} onClick={ () => {setActiveButton('line')}}>
+                    <button className={'btn btn-light mx-1 my-2 ' + (activeButton === 'line'? 'active' :'' )} onClick={ () => {setActiveButton('line'); setCurrentTool('line')}}>
                         <FontAwesomeIcon icon={faMinus} />
                     </button>
-                    <button className={'btn btn-light mx-1 my-2 ' + (activeButton === 'circle'? 'active' :'' )} onClick={ () => {setActiveButton('circle')}}>
+                    <button className={'btn btn-light mx-1 my-2 ' + (activeButton === 'circle'? 'active' :'' )} onClick={ () => {setActiveButton('circle'); setCurrentTool('circle')}}>
                         <FontAwesomeIcon icon={faCircle} />
                     </button>
-                    <button className={'btn btn-light mx-1 my-2 ' + (activeButton === 'rectangle'? 'active' :'' )} onClick={ () => {setActiveButton('rectangle')}}>
+                    <button className={'btn btn-light mx-1 my-2 ' + (activeButton === 'rectangle'? 'active' :'' )} onClick={ () => {setActiveButton('rectangle'); setCurrentTool('rectangle')}}>
                         <FontAwesomeIcon icon={faSquare} />
                     </button>
-                    <button className={'btn btn-light mx-1 my-2 ' + (activeButton === 'eraser'? 'active' :'' )} onClick={ () => {setActiveButton('eraser')}}>
+                    <button className={'btn btn-light mx-1 my-2 ' + (activeButton === 'eraser'? 'active' :'' )} onClick={ () => {setActiveButton('eraser'); setCurrentTool('eraser')}}>
                         <FontAwesomeIcon icon={faEraser} />
                     </button>
+                    <input type="color" className="form-control form-control-color mx-1 my-2"  value={fillColor} onChange={handleChangeColor} title="Choose your color"/>
                     <hr className="mt-4" />
                     <h5>File</h5>
                     <button className={'btn btn-light mx-1 my-2' + (activeButton === 'open'? 'active' :'' )} onClick={handleUploadButtonClick}>
